@@ -1,0 +1,874 @@
+<!DOCTYPE html>
+<html lang="cs">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Roblox Block Legends - Realtime Online Multiplayer</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Fredoka+One&family=Nunito:wght@700;900&display=swap');
+        
+        * {
+            user-select: none;
+            -webkit-user-select: none;
+            font-family: 'Nunito', sans-serif;
+            touch-action: manipulation;
+        }
+        
+        .font-game {
+            font-family: 'Fredoka One', cursive;
+        }
+
+        .text-stroke {
+            -webkit-text-stroke: 2px #000;
+        }
+
+        .text-stroke-sm {
+            -webkit-text-stroke: 1px #000;
+        }
+
+        /* Custom Scrollbar for Lobby */
+        ::-webkit-scrollbar {
+            width: 8px;
+        }
+        ::-webkit-scrollbar-track {
+            background: rgba(0,0,0,0.2);
+            border-radius: 4px;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #f59e0b;
+            border-radius: 4px;
+        }
+
+        /* Touch Joystick styling */
+        #joystick-container {
+            display: none;
+        }
+        @media (max-width: 1024px) {
+            #joystick-container { display: block; }
+        }
+
+        .glass-panel {
+            background: rgba(15, 23, 42, 0.75);
+            backdrop-filter: blur(12px);
+            border: 2px solid rgba(255, 255, 255, 0.15);
+        }
+
+        .btn-blox {
+            transition: all 0.15s cubic-bezier(0.4, 0, 0.2, 1);
+            box-shadow: 0 6px 0 0 rgba(0, 0, 0, 0.4);
+        }
+        .btn-blox:active {
+            transform: translateY(4px);
+            box-shadow: 0 2px 0 0 rgba(0, 0, 0, 0.4);
+        }
+    </style>
+
+    <!-- Firebase SDK Modular Import Setup -->
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
+        import { 
+            getFirestore, 
+            doc, 
+            setDoc, 
+            onSnapshot, 
+            deleteDoc, 
+            serverTimestamp,
+            collection,
+            onSnapshot as onCollectionSnapshot
+        } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
+
+        // Vložená konfigurace Vašeho Firebase projektu
+        const firebaseConfig = {
+            apiKey: "AIzaSyAE6cuSzHaIX0n3SoOh3M97GHvnkmQkh3I",
+            authDomain: "multi-aa818.firebaseapp.com",
+            projectId: "multi-aa818",
+            storageBucket: "multi-aa818.firebasestorage.app",
+            messagingSenderId: "750686959771",
+            appId: "1:750686959771:web:70a8047900b7fb9f1dae3e"
+        };
+
+        // Inicializace Firebase
+        const app = initializeApp(firebaseConfig);
+        const db = getFirestore(app);
+
+        window.db = db;
+        window.firebaseDoc = doc;
+        window.firebaseSetDoc = setDoc;
+        window.firebaseOnSnapshot = onSnapshot;
+        window.firebaseDeleteDoc = deleteDoc;
+        window.firebaseServerTimestamp = serverTimestamp;
+        window.firebaseCollection = collection;
+        window.firebaseOnCollectionSnapshot = onCollectionSnapshot;
+    </script>
+</head>
+<body class="bg-slate-950 text-white overflow-hidden h-screen w-screen select-none">
+
+    <!-- GAME CANVAS -->
+    <canvas id="gameCanvas" class="absolute inset-0 w-full h-full z-0 block"></canvas>
+
+    <!-- MAIN MENU OVERLAY -->
+    <div id="mainMenu" class="absolute inset-0 z-20 flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-md">
+        <div class="glass-panel w-full max-w-2xl rounded-3xl p-6 sm:p-8 flex flex-col gap-6 shadow-2xl border border-amber-500/30">
+            
+            <!-- LOGO HEADER -->
+            <div class="text-center relative">
+                <div class="inline-block bg-gradient-to-r from-amber-500 via-red-500 to-purple-600 p-1 rounded-2xl shadow-lg transform -rotate-1">
+                    <div class="bg-slate-900 px-6 py-3 rounded-xl">
+                        <h1 class="text-4xl sm:text-6xl font-game text-amber-400 tracking-wider text-stroke drop-shadow-md">
+                            ROBLOX <span class="text-red-500">LEGENDS</span>
+                        </h1>
+                        <p class="text-xs sm:text-sm font-bold text-slate-400 tracking-widest uppercase mt-1">
+                            <i class="fa-solid fa-cloud text-sky-400"></i> Firebase Realtime Online Multiplayer
+                        </p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- TAB MENU SWITCHER -->
+            <div class="flex gap-2 border-b border-slate-700/60 pb-3">
+                <button onclick="switchTab('play')" id="tabBtn-play" class="flex-1 py-2 rounded-xl font-game text-lg bg-amber-500 text-slate-950 shadow-md">
+                    <i class="fa-solid fa-gamepad mr-1"></i> Hráčský Lobb
+                </button>
+                <button onclick="switchTab('avatar')" id="tabBtn-avatar" class="flex-1 py-2 rounded-xl font-game text-lg bg-slate-800 text-slate-300 hover:bg-slate-700">
+                    <i class="fa-solid fa-shirt mr-1"></i> Postava
+                </button>
+                <button onclick="switchTab('github')" id="tabBtn-github" class="flex-1 py-2 rounded-xl font-game text-lg bg-slate-800 text-slate-300 hover:bg-slate-700">
+                    <i class="fa-brands fa-github mr-1"></i> GitHub Návod
+                </button>
+            </div>
+
+            <!-- TAB 1: PLAY / JOIN MULTIPLAYER -->
+            <div id="tab-play" class="flex flex-col gap-5">
+                <div>
+                    <label class="block text-xs font-bold uppercase tracking-wider text-slate-400 mb-2">Tvá Přezdívka:</label>
+                    <div class="relative">
+                        <i class="fa-solid fa-user absolute left-4 top-1/2 -translate-y-1/2 text-slate-400"></i>
+                        <input type="text" id="usernameInput" maxlength="12" value="NoobMaster" 
+                            class="w-full bg-slate-900/90 border-2 border-slate-700 rounded-xl py-3 pl-11 pr-4 font-bold text-lg text-amber-400 focus:outline-none focus:border-amber-500 transition">
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <!-- ROOM CODE INPUT -->
+                    <div class="flex flex-col gap-2">
+                        <label class="text-xs font-bold uppercase tracking-wider text-slate-400">Kód Místnosti (Room Code):</label>
+                        <div class="flex gap-2">
+                            <input type="text" id="roomCodeInput" uppercase maxlength="6" placeholder="KÓD" 
+                                class="w-full bg-slate-900/90 border-2 border-slate-700 rounded-xl px-4 py-3 text-center font-game text-xl tracking-widest text-amber-400 focus:outline-none focus:border-amber-500">
+                            <button onclick="generateRandomRoom()" class="px-3 bg-slate-800 hover:bg-slate-700 border border-slate-600 rounded-xl text-slate-300" title="Vygenerovat náhodný kód">
+                                <i class="fa-solid fa-dice"></i>
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- GAME MODE SELECT -->
+                    <div class="flex flex-col gap-2">
+                        <label class="text-xs font-bold uppercase tracking-wider text-slate-400">Herní Mód:</label>
+                        <select id="gameModeSelect" class="bg-slate-900/90 border-2 border-slate-700 rounded-xl px-4 py-3 font-bold text-slate-200 focus:outline-none focus:border-amber-500">
+                            <option value="obby">🏃‍♂️ Obby Race (Překážková dráha)</option>
+                            <option value="coins">🪙 Coin Rush (Sběr mincí)</option>
+                            <option value="hill">👑 King of the Hill (Vládce věže)</option>
+                        </select>
+                    </div>
+                </div>
+
+                <!-- JOIN / START BUTTON -->
+                <button onclick="startMultiplayerGame()" class="btn-blox w-full bg-gradient-to-r from-emerald-500 to-green-600 hover:from-emerald-400 hover:to-green-500 text-slate-950 font-game text-2xl py-4 rounded-2xl tracking-wider text-stroke-sm uppercase mt-2 flex items-center justify-center gap-3">
+                    <i class="fa-solid fa-play text-2xl"></i> Připojit Se A Hrát
+                </button>
+                <p class="text-center text-xs text-slate-400">Propojování probíhá živě přes databázi Firebase <span class="text-emerald-400 font-bold">multi-aa818</span></p>
+            </div>
+
+            <!-- TAB 2: AVATAR CUSTOMIZATION -->
+            <div id="tab-avatar" class="hidden flex-col gap-4">
+                <p class="text-sm text-slate-300">Uprav si vzhled své Roblox postavičky. Ostatní hráči v online místnosti ho uvidí okamžitě!</p>
+                
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <!-- COLOR SELECTION -->
+                    <div>
+                        <label class="block text-xs font-bold uppercase tracking-wider text-slate-400 mb-2">Barva Těla:</label>
+                        <div class="grid grid-cols-4 gap-2" id="colorPicker">
+                            <!-- Populated dynamically -->
+                        </div>
+                    </div>
+
+                    <!-- HAT SELECTION -->
+                    <div>
+                        <label class="block text-xs font-bold uppercase tracking-wider text-slate-400 mb-2">Doplněk / Klobouk:</label>
+                        <select id="hatSelect" onchange="updateHat()" class="w-full bg-slate-900 border-2 border-slate-700 rounded-xl p-3 font-bold text-slate-200">
+                            <option value="none">Žádný (Holohlavý)</option>
+                            <option value="cap">🧢 Kšiltovka</option>
+                            <option value="crown">👑 Zlatá Koruna</option>
+                            <option value="horns">😈 Ďábelské Rohy</option>
+                            <option value="headphones">🎧 Herní Sluchátka</option>
+                        </select>
+                    </div>
+                </div>
+            </div>
+
+            <!-- TAB 3: GITHUB DEPLOYMENT GUIDE -->
+            <div id="tab-github" class="hidden flex-col gap-3 text-sm text-slate-300 max-h-64 overflow-y-auto pr-2">
+                <h3 class="font-game text-amber-400 text-lg"><i class="fa-brands fa-github text-white mr-1"></i> Jak dát hru na GitHub za 2 minuty:</h3>
+                <ol class="list-decimal list-inside space-y-2 text-xs leading-relaxed">
+                    <li>Jdi na <a href="https://github.com" target="_blank" class="text-sky-400 underline font-bold">GitHub.com</a> a vytvoř nové úložiště (Repository), např. <code class="bg-slate-900 px-1 py-0.5 rounded text-amber-300">roblox-multiplayer</code>.</li>
+                    <li>Nahraj tento soubor a pojmenuj ho přesně <code class="bg-slate-900 px-1 py-0.5 rounded text-amber-300">index.html</code>.</li>
+                    <li>V nabídce úložiště klikni na **Settings** &rarr; **Pages**.</li>
+                    <li>V sekci **Branch** zvol <code class="bg-slate-900 px-1 py-0.5 rounded text-amber-300">main</code> (nebo <code class="bg-slate-900 px-1 py-0.5 rounded text-amber-300">master</code>) a klikni na **Save**.</li>
+                    <li>Během minuty získáš zdarma odkaz (např. <code class="bg-slate-900 px-1 py-0.5 rounded text-amber-300">https://tvoje-jmeno.github.io/roblox-multiplayer/</code>), na kterém se může napojit kdokoliv z celého světa!</li>
+                </ol>
+            </div>
+
+        </div>
+    </div>
+
+    <!-- IN-GAME HUD / UI -->
+    <div id="gameHUD" class="hidden absolute inset-0 z-10 pointer-events-none p-4 flex flex-col justify-between">
+        
+        <!-- TOP HUD BAR -->
+        <div class="flex justify-between items-start">
+            <!-- LEADERBOARD / STATUS -->
+            <div class="glass-panel rounded-2xl p-3 min-w-[200px] pointer-events-auto shadow-lg border border-amber-500/20">
+                <div class="flex items-center justify-between gap-3 border-b border-slate-700/50 pb-1 mb-2">
+                    <span class="font-game text-xs text-amber-400 tracking-wider">
+                        <i class="fa-solid fa-users text-sky-400"></i> HRÁČI V MÍSTNOSTI (<span id="roomCodeDisplay" class="text-white">---</span>)
+                    </span>
+                    <span id="pingDisplay" class="text-[10px] text-emerald-400 font-mono">ONLINE</span>
+                </div>
+                <div id="leaderboardList" class="flex flex-col gap-1 max-h-36 overflow-y-auto pr-1">
+                    <!-- Dynamic list of players -->
+                </div>
+            </div>
+
+            <!-- ROOM INFOS / TIMER / LEAVE -->
+            <div class="flex flex-col items-end gap-2">
+                <button onclick="leaveGame()" class="pointer-events-auto bg-red-600/90 hover:bg-red-500 text-white px-4 py-2 rounded-xl font-game text-sm shadow-md flex items-center gap-2 border border-red-400">
+                    <i class="fa-solid fa-right-from-bracket"></i> Odejít do menu
+                </button>
+                <div class="glass-panel px-4 py-2 rounded-xl text-right">
+                    <p id="modeDisplay" class="font-game text-sm text-amber-400">Obby Race</p>
+                    <p id="subScoreDisplay" class="text-xs font-bold text-slate-300">Cíl: Dosáhni konce dráhy!</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- MOBILE JOYSTICK TOUCH CONTROLS -->
+        <div id="joystick-container" class="pointer-events-auto absolute bottom-6 left-6 w-32 h-32 bg-slate-900/60 rounded-full border-2 border-slate-500/50 backdrop-blur-sm">
+            <div id="joystick-stick" class="absolute w-12 h-12 bg-amber-500/80 rounded-full top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 shadow-lg"></div>
+        </div>
+
+        <button id="mobileJumpBtn" class="pointer-events-auto absolute bottom-8 right-8 w-20 h-20 bg-amber-500/90 active:bg-amber-400 border-4 border-amber-300 rounded-full font-game text-slate-950 text-xl shadow-2xl flex items-center justify-center lg:hidden">
+            JUMP
+        </button>
+
+        <!-- WINNER BANNER MODAL -->
+        <div id="winModal" class="hidden pointer-events-auto absolute inset-0 bg-slate-950/80 backdrop-blur-md flex items-center justify-center p-4 z-30">
+            <div class="glass-panel p-8 rounded-3xl text-center max-w-sm border-2 border-amber-400 shadow-2xl animate-bounce">
+                <i class="fa-solid fa-trophy text-6xl text-amber-400 mb-3 drop-shadow"></i>
+                <h2 id="winTitle" class="font-game text-3xl text-amber-400">VÍTĚZ!</h2>
+                <p id="winDesc" class="text-slate-200 font-bold my-2">Hráč vyhrál toto kolo!</p>
+                <button onclick="resetRound()" class="btn-blox mt-4 bg-amber-500 text-slate-950 font-game px-6 py-3 rounded-xl">
+                    Hrát Další Kolo
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- JAVASCRIPT GAME LOGIC -->
+    <script>
+        /* --- GAME ENGINE & FIREBASE MULTIPLAYER LOGIC --- */
+        
+        const canvas = document.getElementById('gameCanvas');
+        const ctx = canvas.getContext('2d');
+
+        // Available Body Colors for Roblox Character
+        const AVATAR_COLORS = ['#f59e0b', '#ef4444', '#3b82f6', '#10b981', '#8b5cf6', '#ec4899', '#06b6d4', '#f97316'];
+        let selectedColor = AVATAR_COLORS[0];
+        let selectedHat = 'none';
+
+        // Local Player State
+        let myPlayer = {
+            id: 'p_' + Math.random().toString(36).substring(2, 9),
+            name: 'NoobMaster',
+            x: 100,
+            y: 0,
+            vx: 0,
+            vy: 0,
+            color: selectedColor,
+            hat: 'none',
+            score: 0,
+            isGrounded: false,
+            facingLeft: false,
+            animFrame: 0
+        };
+
+        let remotePlayers = {}; // Stores live positions of online players from Firebase
+        let currentRoomCode = '';
+        let currentMode = 'obby';
+        let gameLoopId = null;
+        let unsubscribeFirebase = null;
+        let roomDocRef = null;
+
+        // Keys pressed state
+        const keys = {};
+
+        // Audio Effects Synthesizer (Web Audio API)
+        const AudioCtx = window.AudioContext || window.webkitAudioContext;
+        let audioCtx = null;
+
+        function playSound(type) {
+            if (!audioCtx) audioCtx = new AudioCtx();
+            if (audioCtx.state === 'suspended') audioCtx.resume();
+
+            const osc = audioCtx.createOscillator();
+            const gain = audioCtx.createGain();
+            osc.connect(gain);
+            gain.connect(audioCtx.destination);
+
+            const now = audioCtx.currentTime;
+
+            if (type === 'jump') {
+                osc.type = 'sine';
+                osc.frequency.setValueAtTime(150, now);
+                osc.frequency.exponentialRampToValueAtTime(400, now + 0.15);
+                gain.gain.setValueAtTime(0.3, now);
+                gain.gain.linearRampToValueAtTime(0, now + 0.15);
+                osc.start(now);
+                osc.stop(now + 0.15);
+            } else if (type === 'coin') {
+                osc.type = 'triangle';
+                osc.frequency.setValueAtTime(523, now);
+                osc.frequency.setValueAtTime(659, now + 0.08);
+                gain.gain.setValueAtTime(0.2, now);
+                gain.gain.linearRampToValueAtTime(0, now + 0.2);
+                osc.start(now);
+                osc.stop(now + 0.2);
+            } else if (type === 'win') {
+                osc.type = 'square';
+                osc.frequency.setValueAtTime(400, now);
+                osc.frequency.setValueAtTime(600, now + 0.1);
+                osc.frequency.setValueAtTime(800, now + 0.2);
+                gain.gain.setValueAtTime(0.2, now);
+                gain.gain.linearRampToValueAtTime(0, now + 0.4);
+                osc.start(now);
+                osc.stop(now + 0.4);
+            }
+        }
+
+        // World Physics & Map Configuration
+        const GRAVITY = 0.55;
+        const FRICTION = 0.82;
+        let mapBlocks = [];
+        let coins = [];
+        let hillZone = null;
+
+        // Build Level Map according to Mode
+        function generateMap(mode) {
+            mapBlocks = [];
+            coins = [];
+            hillZone = null;
+
+            if (mode === 'obby') {
+                // START PLATFORM
+                mapBlocks.push({ x: 0, y: 500, w: 250, h: 40, type: 'start' });
+
+                // OBSTACLES
+                let currX = 300;
+                let currY = 480;
+                for (let i = 0; i < 15; i++) {
+                    const gap = 110 + Math.random() * 60;
+                    currX += gap;
+                    currY += (Math.random() - 0.5) * 120;
+                    currY = Math.max(250, Math.min(550, currY));
+
+                    const isLava = Math.random() < 0.25;
+                    const isBounce = !isLava && Math.random() < 0.2;
+
+                    mapBlocks.push({
+                        x: currX,
+                        y: currY,
+                        w: 100 + Math.random() * 40,
+                        h: 30,
+                        type: isLava ? 'lava' : (isBounce ? 'bounce' : 'normal')
+                    });
+
+                    // Add coin
+                    if (!isLava && Math.random() < 0.6) {
+                        coins.push({ x: currX + 40, y: currY - 40, collected: false });
+                    }
+                }
+
+                // FINISH PLATFORM
+                mapBlocks.push({ x: currX + 220, y: currY - 20, w: 300, h: 40, type: 'finish' });
+
+            } else if (mode === 'coins') {
+                // ARENA PLATFORMS
+                mapBlocks.push({ x: 0, y: 500, w: 1600, h: 40, type: 'normal' });
+                mapBlocks.push({ x: 200, y: 380, w: 250, h: 25, type: 'normal' });
+                mapBlocks.push({ x: 550, y: 280, w: 250, h: 25, type: 'bounce' });
+                mapBlocks.push({ x: 900, y: 380, w: 250, h: 25, type: 'normal' });
+                mapBlocks.push({ x: 1200, y: 260, w: 200, h: 25, type: 'normal' });
+
+                // Generate lots of coins
+                for (let x = 100; x < 1500; x += 80) {
+                    coins.push({ x: x, y: 440, collected: false });
+                    if (Math.random() < 0.5) {
+                        coins.push({ x: x, y: 220 + Math.random() * 100, collected: false });
+                    }
+                }
+            } else if (mode === 'hill') {
+                // TOWER / HILL MAP
+                mapBlocks.push({ x: 100, y: 520, w: 1200, h: 40, type: 'normal' });
+                mapBlocks.push({ x: 300, y: 420, w: 200, h: 25, type: 'normal' });
+                mapBlocks.push({ x: 900, y: 420, w: 200, h: 25, type: 'normal' });
+                mapBlocks.push({ x: 500, y: 320, w: 400, h: 30, type: 'normal' });
+
+                // HILL CROWN ZONE AT TOP
+                hillZone = { x: 600, y: 200, w: 200, h: 120 };
+            }
+        }
+
+        // Initialize UI Elements & Event Listeners
+        window.addEventListener('load', () => {
+            // Resize canvas
+            resizeCanvas();
+            window.addEventListener('resize', resizeCanvas);
+
+            // Populate Color Picker UI
+            const picker = document.getElementById('colorPicker');
+            AVATAR_COLORS.forEach(c => {
+                const btn = document.createElement('div');
+                btn.className = `w-10 h-10 rounded-xl cursor-pointer border-2 border-slate-700 transition transform hover:scale-110 flex items-center justify-center`;
+                btn.style.backgroundColor = c;
+                btn.onclick = () => {
+                    selectedColor = c;
+                    myPlayer.color = c;
+                    Array.from(picker.children).forEach(child => child.innerHTML = '');
+                    btn.innerHTML = '<i class="fa-solid fa-check text-slate-950 font-bold"></i>';
+                };
+                if (c === selectedColor) btn.innerHTML = '<i class="fa-solid fa-check text-slate-950 font-bold"></i>';
+                picker.appendChild(btn);
+            });
+
+            generateRandomRoom();
+            setupControls();
+        });
+
+        function resizeCanvas() {
+            canvas.width = window.innerWidth;
+            canvas.height = window.innerHeight;
+        }
+
+        function generateRandomRoom() {
+            const code = Math.random().toString(36).substring(2, 8).toUpperCase();
+            document.getElementById('roomCodeInput').value = code;
+        }
+
+        function switchTab(tab) {
+            ['play', 'avatar', 'github'].forEach(t => {
+                document.getElementById(`tab-${t}`).classList.add('hidden');
+                document.getElementById(`tabBtn-${t}`).classList.remove('bg-amber-500', 'text-slate-950');
+                document.getElementById(`tabBtn-${t}`).classList.add('bg-slate-800', 'text-slate-300');
+            });
+            document.getElementById(`tab-${tab}`).classList.remove('hidden');
+            document.getElementById(`tabBtn-${tab}`).classList.add('bg-amber-500', 'text-slate-950');
+            document.getElementById(`tabBtn-${tab}`).classList.remove('bg-slate-800', 'text-slate-300');
+        }
+
+        function updateHat() {
+            selectedHat = document.getElementById('hatSelect').value;
+            myPlayer.hat = selectedHat;
+        }
+
+        /* --- FIREBASE MULTIPLAYER REALTIME ENGINE --- */
+
+        async function startMultiplayerGame() {
+            if (!window.db) {
+                alert("Firebase se stále načítá, zkus to za sekundu znovu!");
+                return;
+            }
+
+            const username = document.getElementById('usernameInput').value.trim() || 'Player';
+            currentRoomCode = document.getElementById('roomCodeInput').value.trim().toUpperCase() || 'LOBBY';
+            currentMode = document.getElementById('gameModeSelect').value;
+
+            myPlayer.name = username;
+            myPlayer.color = selectedColor;
+            myPlayer.hat = selectedHat;
+            myPlayer.x = 100;
+            myPlayer.y = 400;
+            myPlayer.vx = 0;
+            myPlayer.vy = 0;
+            myPlayer.score = 0;
+
+            generateMap(currentMode);
+
+            // Hide Menu, Show HUD
+            document.getElementById('mainMenu').classList.add('hidden');
+            document.getElementById('gameHUD').classList.remove('hidden');
+            document.getElementById('roomCodeDisplay').innerText = currentRoomCode;
+            document.getElementById('modeDisplay').innerText = 
+                currentMode === 'obby' ? '🏃‍♂️ Obby Race' : (currentMode === 'coins' ? '🪙 Coin Rush' : '👑 King of the Hill');
+
+            // Connect to Firebase Room Document
+            roomDocRef = window.firebaseDoc(window.db, "rooms", currentRoomCode);
+
+            // Listen to Realtime updates in the Firebase Room
+            unsubscribeFirebase = window.firebaseOnSnapshot(roomDocRef, (docSnap) => {
+                if (docSnap.exists()) {
+                    const data = docSnap.data();
+                    if (data.players) {
+                        remotePlayers = data.players;
+                    }
+                }
+            });
+
+            // Start sending local position updates to Firebase every 60ms
+            setInterval(syncLocalPlayerToFirebase, 60);
+
+            // Start main rendering loop
+            if (gameLoopId) cancelAnimationFrame(gameLoopId);
+            gameLoopId = requestAnimationFrame(gameLoop);
+        }
+
+        async function syncLocalPlayerToFirebase() {
+            if (!roomDocRef) return;
+
+            const playerData = {
+                id: myPlayer.id,
+                name: myPlayer.name,
+                x: Math.round(myPlayer.x),
+                y: Math.round(myPlayer.y),
+                color: myPlayer.color,
+                hat: myPlayer.hat,
+                score: myPlayer.score,
+                facingLeft: myPlayer.facingLeft,
+                updatedAt: Date.now()
+            };
+
+            try {
+                await window.firebaseSetDoc(roomDocRef, {
+                    players: {
+                        [myPlayer.id]: playerData
+                    }
+                }, { merge: true });
+            } catch (e) {
+                console.error("Chyba synchronizace s Firebase:", e);
+            }
+        }
+
+        function leaveGame() {
+            if (unsubscribeFirebase) unsubscribeFirebase();
+            if (gameLoopId) cancelAnimationFrame(gameLoopId);
+
+            document.getElementById('mainMenu').classList.remove('hidden');
+            document.getElementById('gameHUD').classList.add('hidden');
+            document.getElementById('winModal').classList.add('hidden');
+        }
+
+        /* --- CONTROLS & PHYSICS --- */
+
+        function setupControls() {
+            window.addEventListener('keydown', e => {
+                keys[e.key.toLowerCase()] = true;
+                if (e.key === ' ' || e.key === 'ArrowUp' || e.key.toLowerCase() === 'w') {
+                    e.preventDefault();
+                }
+            });
+
+            window.addEventListener('keyup', e => {
+                keys[e.key.toLowerCase()] = false;
+            });
+
+            // Mobile Touch Joystick
+            const joystickContainer = document.getElementById('joystick-container');
+            const joystickStick = document.getElementById('joystick-stick');
+            let isTouchingJoystick = false;
+
+            joystickContainer.addEventListener('touchstart', e => { isTouchingJoystick = true; updateJoystick(e.touches[0]); });
+            joystickContainer.addEventListener('touchmove', e => { if (isTouchingJoystick) updateJoystick(e.touches[0]); });
+            joystickContainer.addEventListener('touchend', () => {
+                isTouchingJoystick = false;
+                joystickStick.style.transform = `translate(-50%, -50%)`;
+                keys['a'] = false; keys['d'] = false;
+            });
+
+            function updateJoystick(touch) {
+                const rect = joystickContainer.getBoundingClientRect();
+                const centerX = rect.left + rect.width / 2;
+                const dx = touch.clientX - centerX;
+                
+                if (dx < -15) { keys['a'] = true; keys['d'] = false; }
+                else if (dx > 15) { keys['d'] = true; keys['a'] = false; }
+                else { keys['a'] = false; keys['d'] = false; }
+
+                const limitedX = Math.max(-40, Math.min(40, dx));
+                joystickStick.style.transform = `translate(calc(-50% + ${limitedX}px), -50%)`;
+            }
+
+            document.getElementById('mobileJumpBtn').addEventListener('touchstart', (e) => {
+                e.preventDefault();
+                keys[' '] = true;
+            });
+            document.getElementById('mobileJumpBtn').addEventListener('touchend', (e) => {
+                e.preventDefault();
+                keys[' '] = false;
+            });
+        }
+
+        // Main Physics Update
+        function updatePhysics() {
+            // Horizontal Movement
+            if (keys['a'] || keys['arrowleft']) {
+                myPlayer.vx -= 1.1;
+                myPlayer.facingLeft = true;
+            }
+            if (keys['d'] || keys['arrowright']) {
+                myPlayer.vx += 1.1;
+                myPlayer.facingLeft = false;
+            }
+
+            // Jump
+            if ((keys[' '] || keys['w'] || keys['arrowup']) && myPlayer.isGrounded) {
+                myPlayer.vy = -13.5;
+                myPlayer.isGrounded = false;
+                playSound('jump');
+            }
+
+            // Apply Gravity & Friction
+            myPlayer.vy += GRAVITY;
+            myPlayer.vx *= FRICTION;
+
+            myPlayer.x += myPlayer.vx;
+            myPlayer.y += myPlayer.vy;
+
+            // Platform Collision Detection
+            myPlayer.isGrounded = false;
+            const playerBox = { x: myPlayer.x, y: myPlayer.y, w: 32, h: 48 };
+
+            for (let b of mapBlocks) {
+                if (myPlayer.x + 32 > b.x && myPlayer.x < b.x + b.w &&
+                    myPlayer.y + 48 > b.y && myPlayer.y < b.y + b.h) {
+                    
+                    // Lava Block - Reset to start
+                    if (b.type === 'lava') {
+                        myPlayer.x = 100;
+                        myPlayer.y = 400;
+                        myPlayer.vx = 0;
+                        myPlayer.vy = 0;
+                        return;
+                    }
+
+                    // Landing on top of block
+                    if (myPlayer.vy > 0 && myPlayer.y + 48 - myPlayer.vy <= b.y + 12) {
+                        myPlayer.y = b.y - 48;
+                        myPlayer.vy = b.type === 'bounce' ? -18 : 0;
+                        myPlayer.isGrounded = true;
+
+                        if (b.type === 'finish') {
+                            triggerWin(myPlayer.name);
+                        }
+                    }
+                }
+            }
+
+            // Coin Pickups
+            coins.forEach(c => {
+                if (!c.collected && Math.hypot((myPlayer.x + 16) - c.x, (myPlayer.y + 24) - c.y) < 30) {
+                    c.collected = true;
+                    myPlayer.score += 10;
+                    playSound('coin');
+                }
+            });
+
+            // King of the Hill Scoring
+            if (currentMode === 'hill' && hillZone) {
+                if (myPlayer.x + 16 > hillZone.x && myPlayer.x + 16 < hillZone.x + hillZone.w &&
+                    myPlayer.y + 24 > hillZone.y && myPlayer.y + 24 < hillZone.y + hillZone.h) {
+                    myPlayer.score += 0.2;
+                    if (myPlayer.score >= 100) {
+                        triggerWin(myPlayer.name);
+                    }
+                }
+            }
+
+            // Fall below screen reset
+            if (myPlayer.y > 900) {
+                myPlayer.x = 100;
+                myPlayer.y = 400;
+                myPlayer.vx = 0;
+                myPlayer.vy = 0;
+            }
+        }
+
+        function triggerWin(winnerName) {
+            playSound('win');
+            document.getElementById('winTitle').innerText = `${winnerName} VYHRÁVÁ!`;
+            document.getElementById('winDesc').innerText = `Skvělá práce v herním módu ${currentMode.toUpperCase()}`;
+            document.getElementById('winModal').classList.remove('hidden');
+        }
+
+        function resetRound() {
+            document.getElementById('winModal').classList.add('hidden');
+            myPlayer.x = 100;
+            myPlayer.y = 400;
+            myPlayer.score = 0;
+            generateMap(currentMode);
+        }
+
+        /* --- RENDER ENGINE --- */
+
+        function gameLoop() {
+            updatePhysics();
+
+            // Clear Screen
+            ctx.fillStyle = '#020617';
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+            // Camera Tracking (Center on local player)
+            ctx.save();
+            const cameraX = canvas.width / 2 - (myPlayer.x + 16);
+            const cameraY = canvas.height / 2 - (myPlayer.y + 24);
+            ctx.translate(cameraX, cameraY);
+
+            // Render Map Blocks
+            mapBlocks.forEach(b => {
+                if (b.type === 'lava') ctx.fillStyle = '#ef4444';
+                else if (b.type === 'bounce') ctx.fillStyle = '#3b82f6';
+                else if (b.type === 'start') ctx.fillStyle = '#10b981';
+                else if (b.type === 'finish') ctx.fillStyle = '#f59e0b';
+                else ctx.fillStyle = '#334155';
+
+                ctx.fillRect(b.x, b.y, b.w, b.h);
+                ctx.strokeStyle = 'rgba(255,255,255,0.15)';
+                ctx.lineWidth = 3;
+                ctx.strokeRect(b.x, b.y, b.w, b.h);
+            });
+
+            // Render Hill Zone
+            if (hillZone) {
+                ctx.fillStyle = 'rgba(245, 158, 11, 0.25)';
+                ctx.fillRect(hillZone.x, hillZone.y, hillZone.w, hillZone.h);
+                ctx.strokeStyle = '#f59e0b';
+                ctx.lineWidth = 2;
+                ctx.strokeRect(hillZone.x, hillZone.y, hillZone.w, hillZone.h);
+            }
+
+            // Render Coins
+            coins.forEach(c => {
+                if (!c.collected) {
+                    ctx.fillStyle = '#f59e0b';
+                    ctx.beginPath();
+                    ctx.arc(c.x, c.y, 10, 0, Math.PI * 2);
+                    ctx.fill();
+                    ctx.strokeStyle = '#fef08a';
+                    ctx.lineWidth = 2;
+                    ctx.stroke();
+                }
+            });
+
+            // Render Online Remote Players from Firebase
+            const now = Date.now();
+            Object.values(remotePlayers).forEach(p => {
+                if (p.id !== myPlayer.id && (now - p.updatedAt < 8000)) {
+                    drawRobloxCharacter(p.x, p.y, p.color, p.hat, p.name, p.facingLeft, false);
+                }
+            });
+
+            // Render Local Player
+            drawRobloxCharacter(myPlayer.x, myPlayer.y, myPlayer.color, myPlayer.hat, myPlayer.name, myPlayer.facingLeft, true);
+
+            ctx.restore();
+
+            // Update Leaderboard HUD
+            updateLeaderboardUI();
+
+            gameLoopId = requestAnimationFrame(gameLoop);
+        }
+
+        // Draw Roblox Blocky Character with Hats & Expression
+        function drawRobloxCharacter(x, y, color, hat, name, facingLeft, isMe) {
+            ctx.save();
+            ctx.translate(x, y);
+
+            // Name Tag
+            ctx.font = 'bold 12px Nunito, sans-serif';
+            ctx.fillStyle = isMe ? '#f59e0b' : '#ffffff';
+            ctx.textAlign = 'center';
+            ctx.fillText(name, 16, -12);
+
+            // Blocky Roblox Body Parts
+            // Head
+            ctx.fillStyle = '#fde047';
+            ctx.fillRect(6, 0, 20, 18);
+
+            // Face Eyes & Smile
+            ctx.fillStyle = '#000000';
+            const eyeX = facingLeft ? 8 : 20;
+            ctx.fillRect(eyeX, 5, 3, 3);
+            ctx.fillRect(eyeX + (facingLeft ? 7 : -7), 5, 3, 3);
+            ctx.fillRect(10, 12, 12, 2);
+
+            // Torso (Customizable Color)
+            ctx.fillStyle = color;
+            ctx.fillRect(4, 18, 24, 20);
+
+            // Legs
+            ctx.fillStyle = '#1e293b';
+            ctx.fillRect(6, 38, 8, 12);
+            ctx.fillRect(18, 38, 8, 12);
+
+            // Hats
+            if (hat === 'cap') {
+                ctx.fillStyle = '#ef4444';
+                ctx.fillRect(4, -4, 24, 5);
+                ctx.fillRect(facingLeft ? -2 : 12, -2, 14, 3);
+            } else if (hat === 'crown') {
+                ctx.fillStyle = '#f59e0b';
+                ctx.beginPath();
+                ctx.moveTo(4, 0);
+                ctx.lineTo(8, -8);
+                ctx.lineTo(12, -2);
+                ctx.lineTo(16, -10);
+                ctx.lineTo(20, -2);
+                ctx.lineTo(24, -8);
+                ctx.lineTo(28, 0);
+                ctx.closePath();
+                ctx.fill();
+            } else if (hat === 'horns') {
+                ctx.fillStyle = '#dc2626';
+                ctx.fillRect(4, -6, 4, 6);
+                ctx.fillRect(24, -6, 4, 6);
+            } else if (hat === 'headphones') {
+                ctx.fillStyle = '#06b6d4';
+                ctx.fillRect(2, 4, 4, 10);
+                ctx.fillRect(26, 4, 4, 10);
+                ctx.fillRect(4, -2, 24, 3);
+            }
+
+            ctx.restore();
+        }
+
+        // Live Leaderboard Update
+        function updateLeaderboardUI() {
+            const listEl = document.getElementById('leaderboardList');
+            const allPlayers = [
+                { name: myPlayer.name, score: Math.floor(myPlayer.score), isMe: true },
+                ...Object.values(remotePlayers)
+                    .filter(p => p.id !== myPlayer.id && (Date.now() - p.updatedAt < 8000))
+                    .map(p => ({ name: p.name, score: Math.floor(p.score || 0), isMe: false }))
+            ];
+
+            allPlayers.sort((a, b) => b.score - a.score);
+
+            listEl.innerHTML = allPlayers.map(p => `
+                <div class="flex items-center justify-between text-xs py-1 px-2 rounded ${p.isMe ? 'bg-amber-500/20 text-amber-300 font-bold' : 'text-slate-300'}">
+                    <span>${p.isMe ? '⭐ ' : ''}${p.name}</span>
+                    <span class="font-mono text-amber-400">${p.score} pts</span>
+                </div>
+            `).join('');
+        }
+    </script>
+</body>
+</html>
